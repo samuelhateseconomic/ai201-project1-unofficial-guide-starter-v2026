@@ -20,7 +20,7 @@ load_dotenv(ROOT / ".env")
 # Change this to switch corpora, or pass --corpus on the command line.
 # Options are the folder names inside corpora/. See corpora/README.md.
 
-CORPUS = os.getenv("AI201_CORPUS", "city_guides")
+CORPUS = os.getenv("AI201_CORPUS", "advice_threads")
 
 
 # ─── Chunking (Milestone 3) ──────────────────────────────────────────────────
@@ -43,7 +43,7 @@ TOP_K = 5               # how many chunks to pull back per question
 # 0.6 is a reasonable starting point, not a right answer. Milestone 4 has you
 # measure your own two groups of distances and put the cutoff in the gap.
 # Most corpora land somewhere between 0.45 and 0.75.
-THRESHOLD = 0.6
+THRESHOLD = 0.7
 
 
 # ─── Models ──────────────────────────────────────────────────────────────────

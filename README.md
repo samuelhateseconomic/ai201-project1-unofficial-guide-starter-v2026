@@ -24,7 +24,7 @@
 <!-- Three or four sentences. Which corpus you picked, and the kinds of
      questions your system answers. Write it for someone who has never seen
      this repo.
-
+     I run the corpus advice_threads and ask "What do you wish you'd know in first year?" - Then it tell me that after it looked from the information, it found the answer is no found which is really abnormal because I do see it in the thread in the advice_thread section. This should be the problem of chunking so I need to refine it later.
      Milestone 5. -->
 
 ## Chunking Strategy

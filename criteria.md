@@ -55,42 +55,19 @@ in at least 4 of 5 tries.
 
 ---
 
-## 4. Something about your chunks
+## 4. About Chunk
 
-<!-- YOU WRITE THIS ONE.
-
-     How would you know if your chunks were the right size? Name something
-     countable or observable.
-
-     Examples of the right shape — don't copy these, they should come from
-     what you actually saw in Milestone 3:
-       - "At least 4 of 5 sampled chunks read as a complete thought, with no
-          sentence cut in half at either end."
-       - "No chunk is shorter than 200 characters, since anything below that
-          in my corpus turned out to be a heading with no content under it." -->
-
-
+This should read 26 chunks in total because it is the maximum of chunks that are loaded from the corpus
 
 **Why this target:**
+<!-- What if it can not read the whole document? If so, will the answer make sure it's answer is the best fit? -->
 
 
-
----
-
-## 5. Your choice
-
-<!-- YOU WRITE THIS ONE TOO.
-
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
-
-
+## 5. Threshold    
+When I ask a question the threshold should hold a good ceiling by comparing all the test question. So I set it at 0.7
 
 **Why this target:**
-
+<!-- What if even the question has in the corpus but the answers are constructed in a more complex way which trick the distance system gets really high.-->
 
 
 ---
