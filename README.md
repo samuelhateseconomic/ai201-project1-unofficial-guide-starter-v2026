@@ -121,12 +121,41 @@ The library being open until 2am is a trap. It's a resource, not a schedule.
 <!-- One complete question and answer, pasted as text, with the source line
      visible. Milestone 4. -->
 
-**Question:**
+**Question:** What do you wish you'd known in first year?
 
 **Answer:**
 
 ```
+Based on the provided documents, people wish they had known:
+* That nobody is watching you as closely as you think, and you don't need to worry so much about looking like you know whatyou're doing.
+* That you can declare a course pass/fail late, up to week eight.
+* That your adviser's job is partly to know exceptions to rules, so you should ask before assuming a deadline is fixed.
+* That the add/drop deadline and the withdrawal deadline are different dates, and only one is on the common calendar.
+* That the writing centre will read drafts for any course for free, and these appointments often go unbooked.
 ```
+
+**A note on the retrieval behind this answer:** the five chunks retrieved for
+this question all come from the same thread (`thread_first_year_regret.txt`),
+but the distances spread from 0.2895 (closest) to 0.6364 (farthest):
+
+```
+0.2895  #3  "Honestly: that nobody is watching as closely as you think..."  (52 votes)
+0.4442  #1  "That you can take a course pass/fail and declare it late..."
+0.5372  #4  "That your adviser's job is partly to know the exceptions..."
+0.5993  #0  "That the add/drop deadline and the withdrawal deadline are different..."
+0.6364  #2  "That the writing centre will read a draft for any course..."
+```
+
+The closest match is also the most-upvoted reply, even though it shares
+almost no vocabulary with the question ("Honestly: that nobody is watching..."
+has no "wish," "known," or "first year" in it). It's phrased as the same kind
+of reflective, in-hindsight confession the question is asking for, so the
+embedding model matches on meaning rather than shared words — the other
+replies are on-topic but phrased as flat factual tips, a different sentence
+shape, so they land farther away despite being valid answers too. Vote counts
+have no way to influence this, since I strip them out of the chunk text
+before embedding — so the top-voted reply landing closest is the community's
+judgment and the embedding's judgment agreeing independently.
 
 **My relevance cutoff:**
 
@@ -141,7 +170,18 @@ The library being open until 2am is a trap. It's a resource, not a schedule.
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| Anything specific for first-generation students? | Yes | 0.3365 |
+| When should you actually use the pass/fail option? | Yes | 0.1859 |
+| When should I start looking for a summer internship? | Yes | 0.1309 |
+| What do you wish you'd known in first year? | Yes | 0.2895 |
+| The best study spots that aren't the library? | Yes | 0.1890 |
+| What is the capital of Mongolia? | No | 0.8990 |
+| How do I change the oil in a diesel engine? | No | 0.9047 |
+| Who won the 1994 World Cup? | No | 0.8982 |
+| What is the recommended dosage of ibuprofen for a headache? | No | 0.8189 |
+| How do I write a for loop in Rust? | No | 0.8606 |
+
+In-corpus questions top out at 0.3365; out-of-scope questions bottom out at 0.8189 but in the question "What do you wish you'd known in first year?" there are three more answers are out of bound, which is 0.65. However, the answer itself is considered relevant even though the word itself might not. So, instead of in `config.py` currently sets `THRESHOLD = 0.7`, I would set it to `THRESHOLD = 0.55`, which sits comfortably inside that gap.
 
 ## How I Used AI
 
