@@ -22,10 +22,13 @@ to it, write down what you saw, and move on. That's a real observation about
 your pipeline, not giving up.
 """
 
+import re
 from dataclasses import dataclass
 
 import config
 from ingest import Document
+
+_REPLY_MARKER = re.compile(r"--- reply \d+ \(\d+ votes?\) ---")
 
 
 @dataclass
@@ -80,24 +83,56 @@ def fallback_split(
     return chunks
 
 
+def split_thread(doc: Document) -> list[Chunk]:
+    """
+    Split one advice_threads document into one chunk per reply.
+
+    A whole thread isn't one thought — it's several people giving different,
+    sometimes contradictory, answers to the question in the title. Chunking by
+    character count lumps those answers into a single averaged embedding and
+    buries the one reply that actually answers a given question. Chunking by
+    reply keeps each answer distinct.
+
+    Each reply is prefixed with the thread title, since a reply on its own
+    ("Talk to the department adviser...") doesn't say what question it's
+    answering. Vote counts are dropped — they're a ranking signal, not content
+    for the model to reason over.
+    """
+    parts = _REPLY_MARKER.split(doc.text)
+    title = parts[0].strip()
+    replies = [r.strip() for r in parts[1:] if r.strip()]
+
+    chunks: list[Chunk] = []
+    for index, reply in enumerate(replies):
+        chunks.append(
+            Chunk(
+                text=f"{title}\n\n{reply}",
+                source=doc.source,
+                index=index,
+                produced_by="chunker.py::split_documents",
+            )
+        )
+    return chunks
+
+
 def split_documents(documents: list[Document]) -> list[Chunk]:
     """
-    Split documents into chunks. ⚠️ REPLACE THE BODY OF THIS IN MILESTONE 3.
+    Split documents into chunks.
 
-    Right now it just calls the fallback. That is the plain, generic behaviour
-    the brief is talking about.
-
-    When you write your own strategy, set `produced_by` to
-    "chunker.py::split_documents" so your README's Sample Chunks section names
-    the right function. `app.py chunks` prints that string for you.
-
-    Things worth thinking about before you write any code:
-      - Are your documents short posts or long guides?
-      - Is the useful information in one sentence, or spread over a paragraph?
-      - Would splitting on paragraph breaks keep more thoughts intact than
-        splitting on a character count?
+    advice_threads documents are split one reply per chunk (see
+    `split_thread`) — the useful boundary there is who's speaking, not a
+    character count. Every document in this corpus follows the
+    "--- reply N (votes) ---" format, so any document without that marker
+    falls back to the plain fixed-size splitter instead of silently
+    producing a single giant chunk.
     """
-    return fallback_split(documents)
+    chunks: list[Chunk] = []
+    for doc in documents:
+        if _REPLY_MARKER.search(doc.text):
+            chunks.extend(split_thread(doc))
+        else:
+            chunks.extend(fallback_split([doc]))
+    return chunks
 
 
 def describe(chunks: list[Chunk]) -> str:

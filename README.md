@@ -29,8 +29,8 @@
 
 ## Chunking Strategy
 
-**Chunk size:**
-**Overlap:**
+**Chunk size:** one reply per chunk (not a character count).
+**Overlap:** none — replies don't share text with each other.
 
 <!-- What about YOUR documents made you pick these numbers? Short posts and
      long sectioned guides don't want the same chunking, and "800 seemed
@@ -41,6 +41,29 @@
      more than pretending you got it right first time.
 
      Milestone 3. -->
+
+I started with the default `fallback_split` (fixed 800 characters, 120
+overlap). Every document in `advice_threads` is 318–794 characters, so that
+setting never actually split anything — each whole thread became one chunk.
+That's the bug behind the retrieval miss I noted above: a thread is not one
+thought, it's 3–5 people giving different (sometimes contradictory) answers
+to the question in the title. Embedding the whole thread as one chunk averages
+those answers together, so a question that matches one specific reply well
+gets diluted by the unrelated replies sitting in the same vector.
+
+So I rewrote `split_documents` to split on the `--- reply N (votes) ---`
+marker instead of a character count: one reply = one chunk. Each chunk is
+prefixed with the thread's title line, because a reply on its own ("Talk to
+the department adviser...") doesn't say what question it's answering — the
+title is what makes the chunk self-contained. Vote counts are dropped from
+the chunk text; they're a ranking signal for the humans in the thread, not
+content I want the model treating as fact. Any document that doesn't contain
+a reply marker falls back to the original fixed-size splitter, so the
+function doesn't silently mishandle a document shaped differently than I
+expect.
+
+Result: 75 chunks (one per reply) instead of 23 (one per thread), averaging
+175 characters, produced by `chunker.py::split_documents`.
 
 ## Sample Chunks
 
@@ -53,29 +76,44 @@
 
      Milestone 3. -->
 
-**Chunk 1** — source: `` — produced by: ``
+**Chunk 1** — source: `thread_bike_commute.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: Is a bike worth it for a 20 minute walk commute?
+
+Yeah. Cuts an 18 minute walk to about 6. The thing nobody mentions is storage — covered bike parking exists at three buildings and is full by 9am at all three.
 ```
 
-**Chunk 2** — source: `` — produced by: ``
+**Chunk 2** — source: `thread_first_gen.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: Anything specific for first-generation students?
+
+The thing I'd say: the unwritten rules are the hard part, not the coursework. Ask about the unwritten rules explicitly. People are happy to explain them and nobody volunteers them.
 ```
 
-**Chunk 3** — source: `` — produced by: ``
+**Chunk 3** — source: `thread_laptop_specs.txt#2` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: How much laptop do I actually need for CS courses?
+
+I did two years on an 8GB machine and it was fine until the last project, at which point it very much wasn't. 16 is the answer.
 ```
 
-**Chunk 4** — source: `` — produced by: ``
+**Chunk 4** — source: `thread_parking.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: Worth getting a parking permit?
+
+Street parking on Verrill is legal and free and unmarked, which is why half the upper years do it.
 ```
 
-**Chunk 5** — source: `` — produced by: ``
+**Chunk 5** — source: `thread_sleep_schedule.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: Everyone says fix your sleep. Does it actually matter?
+
+The library being open until 2am is a trap. It's a resource, not a schedule.
 ```
 
 ## Sample Answer
