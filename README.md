@@ -24,8 +24,7 @@
 <!-- Three or four sentences. Which corpus you picked, and the kinds of
      questions your system answers. Write it for someone who has never seen
      this repo.
-     I run the corpus advice_threads and ask "What do you wish you'd know in first year?" - Then it tell me that after it looked from the information, it found the answer is no found which is really abnormal because I do see it in the thread in the advice_thread section. This should be the problem of chunking so I need to refine it later.
-     Milestone 5. -->
+     I run the corpus advice_threads and ask "What do you wish you'd know in first year?" - Then, the answer will look like "That nobody is watching you as closely as you think, and you don't need to worry so much about looking like you know what you're doing....". At the same time, it will contain the resources that the answer came from which one of them should be `thread_first_year_regret.txt`.-->
 
 ## Chunking Strategy
 
@@ -194,9 +193,9 @@ In-corpus questions top out at 0.3365; out-of-scope questions bottom out at 0.81
 
      Milestone 5. -->
 
-**1.**
+**1.** I asked Claude to check the size of each corpus so I could pick a chunk size and overlap that actually fit my documents. It came back with per-document stats showing every `advice_threads` document was 318–794 characters — under my `CHUNK_SIZE` of 800 — which meant `fallback_split` was never actually splitting anything; each whole thread was already one chunk. It first suggested splitting each reply out into its own chunk, but I pointed out that a bare reply on its own doesn't tell the agent what question it's answering, so we need the topic attached, not just the reply text on its own. It revised the design to prefix every reply chunk with the thread's title line before I had it write `split_thread`/`split_documents` in `chunker.py`. I also pushed back when it framed the fix as "tune chunk size" — I asked directly whether Milestone 3 was actually about changing the two config numbers rather than the function, and it pointed me to the docstring in `chunker.py` itself, which says to replace the function body, not the numbers.
 
-**2.**
+**2.** For Milestone 4, I asked Claude to run my five `QUESTIONS` and five `OUT_OF_SCOPE` questions through retrieval and report the best distance for each, then asked where it would put the relevance cutoff and what I'd get wrong at that number. It came back with in-corpus distances topping out at 0.3365 and out-of-scope distances bottoming out at 0.8189, and recommended a cutoff near the middle of that gap (~0.55–0.6) rather than the starter's 0.7 default — explaining that 0.7 sits closer to the out-of-scope side and would be more likely to let a superficially similar out-of-scope question slip through, while a cutoff too low risks refusing a real question phrased awkwardly. I used that reasoning to set `THRESHOLD = 0.55` in `config.py` myself, rather than just accepting whatever number it suggested first.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
