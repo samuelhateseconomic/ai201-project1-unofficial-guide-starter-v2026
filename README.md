@@ -169,15 +169,91 @@ In-corpus questions top out at 0.3365; out-of-scope questions bottom out at 0.81
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Every document gets chunked, none dropped | 75 chunks, 0 dropped | 75, 0 dropped | 75, 0 dropped | 75, 0 dropped | MET |
+| 5. Threshold (0.55) holds for in-corpus questions | 5 of 5 pass the gate | 5/5 | 5/5 | 5/5 | MET |
 
 <!-- Underneath, paste the REAL output for each criterion from one of your
      runs — the actual text your system produced, not a description of it.
      Name the file and function that produced it. -->
+
+Source data: `results/run_2026-09-26_2118.md`, produced by
+`run_eval.py::main` (top-k 5, cutoff 0.55, 3 runs, caching off).
+
+### Criterion 1 — retrieved chunk contains the answer
+
+Chunk retrieved for "When should you actually use the pass/fail option?",
+source `corpora/advice_threads/documents/thread_pass_fail.txt`, chunked by
+`chunker.py::split_documents` as `thread_pass_fail.txt#1`:
+
+```
+THREAD: When should you actually use the pass/fail option?
+
+The part that isn't advertised: you can declare it as late as week eight. So take the midterm first, then decide.
+```
+
+Generated answer, run 2, produced by `generate.py::answer_from_chunks`:
+
+```
+Based on the provided documents, you should use the pass/fail option for a course outside your major that you are taking out of curiosity. You can also take the midterm first and then decide whether to use the option, as you can declare it as late as week eight (thread_pass_fail.txt, thread_first_year_regret.txt).
+```
+
+### Criterion 2 — every answer names a source
+
+Run 1, produced by `generate.py::answer_from_chunks`:
+
+```
+You should start looking earlier than feels reasonable, as large employers close applications in October and November for the following summer. Smaller and local places hire in February and March. 
+
+Source: thread_internship_timing.txt
+```
+
+### Criterion 3 — gate stops out-of-corpus questions
+
+Produced by `run_eval.py::check_out_of_scope`, cutoff 0.55, from
+`results/run_2026-09-26_2118.md`:
+
+| Out-of-scope question | Best distance | Gate |
+|---|---|---|
+| What is the capital of Mongolia? | 0.899 | refused |
+| How do I change the oil in a diesel engine? | 0.905 | refused |
+| Who won the 1994 World Cup? | 0.898 | refused |
+| What is the recommended dosage of ibuprofen for a headache? | 0.819 | refused |
+| How do I write a for loop in Rust? | 0.861 | refused |
+
+### Criterion 4 — every document gets chunked, none dropped
+
+`python app.py chunks`, produced by `chunker.py::split_documents`:
+
+```
+75 chunks total. Showing 5, spread across the corpus.
+```
+
+Checked separately for zero-chunk documents, `ingest.py::load_documents` +
+`chunker.py::split_documents`:
+
+```
+total docs: 23
+total chunks: 75
+docs with zero chunks: []
+num docs represented: 23 of 23
+```
+
+### Criterion 5 — threshold holds for in-corpus questions
+
+Best distances per question, all under the 0.55 cutoff, produced by
+`gate.py::check` via `store.py::search` (identical across all 3 runs since
+retrieval is deterministic):
+
+| Question | Best distance | Gate |
+|---|---|---|
+| Anything specific for first-generation students? | 0.3365 | passed |
+| When should you actually use the pass/fail option? | 0.1859 | passed |
+| When should I start looking for a summer internship? | 0.1309 | passed |
+| What do you wish you'd known in first year? | 0.2895 | passed |
+| The best study spots that aren't the library? | 0.1890 | passed |
 
 ## Verdicts
 
@@ -192,11 +268,11 @@ In-corpus questions top out at 0.3365; out-of-scope questions bottom out at 0.81
 
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| 1 | Retrieved chunks contain the answer (target: 5 of 5) | MET | 5/5, 5/5, 5/5 — held in all three runs, not just one. Retrieval is deterministic, so I didn't rely on the generated answer (which paraphrases); I checked each `expects` string against the actual source document and confirmed it's a verbatim line in the reply the system cites, e.g. `thread_pass_fail.txt` reply 2 matches `expects` for that question word-for-word. |
+| 2 | Every answer names a source (target: 5 of 5) | MET | 5/5, 5/5, 5/5 — read all 15 generated answers (5 questions × 3 runs) by hand; every one names at least one source file. Not close. |
+| 3 | Gate stops out-of-corpus questions (target: 4 of 5) | MET | 5/5 refused, one deterministic pass. Comfortably clears the target — out-of-scope distances (0.819–0.905) never came near the 0.55 cutoff, so there's no run-to-run variance to worry about here. |
+| 4 | Every document gets chunked, none dropped (target: exactly 75 chunks, 0 documents at 0 chunks) | MET | Ran `python app.py chunks` (75 chunks total) and a direct doc-coverage check against `ingest.py::load_documents` + `chunker.py::split_documents`: 23 of 23 documents represented, none at zero. Deterministic, so one check is the whole measurement. |
+| 5 | Threshold (0.55) holds for in-corpus questions | MET | 5/5, 5/5, 5/5 passed the gate. Best distances (0.1309–0.3365) held well under 0.55 in every run — the closest in-corpus question (first-gen, 0.3365) still isn't near the cutoff, so this wasn't a close call. |
 
 ## Diagnoses
 
