@@ -19,12 +19,19 @@ pipeline earns credit; *"80% seemed reasonable"* does not.
 
 ## 1. Retrieved chunks contain the answer
 
-For at least 4 of my 5 test questions, the retrieved chunks include one that
-contains the answer.
+For all 5 of my 5 test questions, at least one of the top-5 chunks
+`store.search` retrieves — read as raw chunk text, before generation —
+contains the `expects` phrase (or the substance of it) for that question.
 
 **Why this target:**
-<!-- e.g. "One of my questions is about a topic only two documents mention, so
-     I expect that one to be hard." -->
+Every one of my 5 questions maps to a single specific reply with distinct,
+on-topic vocabulary, not a vague topic several documents could plausibly
+answer. When I measured distances in Milestone 4, my worst in-corpus question
+(first-gen students, 0.3365) was still nowhere near my best out-of-scope
+question (ibuprofen dosage, 0.8189) — a gap of over 0.48. There's no borderline
+question in my set sitting close to that boundary, so I don't have a reason to
+expect any single one of the five to be fragile.
+
 
 ---
 
@@ -33,8 +40,7 @@ contains the answer.
 Every answer the system produces names at least one source document.
 
 **Why this target:**
-<!-- Why all five and not four? What about your setup makes that achievable —
-     or what would have to go wrong for it not to be? -->
+The trieved chunks that contains the answer or not should had the ability to address its sources because it need to find the physical evidence at least one in order to reasoning from it, which avoid hallucination.
 
 ---
 
@@ -52,22 +58,32 @@ in at least 4 of 5 tries.
 **Why this target:**
 <!-- What did your distances look like when you set the cutoff in Milestone 4?
      Was there a clean gap, or did the two groups overlap? -->
-
+The distance should be lower than 0.55 in other to determine it is the answer for the question. Otherwise, it should be honest about the limitation of the documents itself rather than being hallucinated and generate fake answers. 
 ---
 
-## 4. About Chunk
+## 4. Every document gets chunked, none silently dropped
 
-This should read 26 chunks in total because it is the maximum of chunks that are loaded from the corpus
+Running `python app.py chunks` over the `advice_threads` corpus reports
+exactly 75 chunks total, with every source document represented at least
+once — zero documents producing zero chunks.
 
 **Why this target:**
-<!-- What if it can not read the whole document? If so, will the answer make sure it's answer is the best fit? -->
+`split_documents` has two paths: split on the `--- reply N (votes) ---`
+marker, or fall back to the fixed 800-character splitter for any document
+that doesn't contain that marker. A document that hits neither path — say,
+one with an unexpected format — wouldn't error, it would just silently
+contribute zero chunks, and every reply in it would become permanently
+unretrievable without the run ever showing a failure. Checking the total
+against a known number (75, one per reply, counted by hand against the
+corpus) is how I catch that silently, since a wrong total is the only signal
+a dropped document would leave behind.
 
 
 ## 5. Threshold    
-When I ask a question the threshold should hold a good ceiling by comparing all the test question. So I set it at 0.7
+When I ask a question the threshold should hold a good ceiling by comparing all the test question. So I set it at 0.55
 
 **Why this target:**
-<!-- What if even the question has in the corpus but the answers are constructed in a more complex way which trick the distance system gets really high.-->
+What if even the question has in the corpus but the answers are constructed in a more complex way which trick the distance system gets really high.
 
 
 ---

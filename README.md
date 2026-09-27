@@ -1,45 +1,16 @@
 # The Unofficial Guide
-
-<!-- Replace this line with your name and which corpus you picked. -->
-
-> **This file is your submission.** Fill it in as you go — most sections get
-> written during the milestone that produces them, not at the end.
->
-> How the starter works, and every command you'll need, is in `RUNNING.md`.
-> Leave that file alone.
->
-> **Paste everything as text.** No screenshots, no video. A typed table gets
-> full credit; a picture of the same table gets none.
->
-> Delete these instruction blocks as you replace them. The `<!-- -->` comments
-> are notes to you and don't show up when the page renders — you can leave them
-> or remove them.
-
+Samuel Do - advice_threads
 ---
 
 # Unit 1
 
 ## What This Does
-
-<!-- Three or four sentences. Which corpus you picked, and the kinds of
-     questions your system answers. Write it for someone who has never seen
-     this repo.
-     I run the corpus advice_threads and ask "What do you wish you'd know in first year?" - Then, the answer will look like "That nobody is watching you as closely as you think, and you don't need to worry so much about looking like you know what you're doing....". At the same time, it will contain the resources that the answer came from which one of them should be `thread_first_year_regret.txt`.-->
+I run the corpus advice_threads and ask "What do you wish you'd know in first year?" - Then, the answer will look like "That nobody is watching you as closely as you think, and you don't need to worry so much about looking like you know what you're doing....". At the same time, it will contain the resources that the answer came from which one of them should be `thread_first_year_regret.txt`.
 
 ## Chunking Strategy
 
 **Chunk size:** one reply per chunk (not a character count).
 **Overlap:** none — replies don't share text with each other.
-
-<!-- What about YOUR documents made you pick these numbers? Short posts and
-     long sectioned guides don't want the same chunking, and "800 seemed
-     reasonable" earns nothing. Point at something you noticed when you read
-     the documents in Milestone 1.
-
-     If you changed your mind partway through, say so and say why. That's worth
-     more than pretending you got it right first time.
-
-     Milestone 3. -->
 
 I started with the default `fallback_split` (fixed 800 characters, 120
 overlap). Every document in `advice_threads` is 318–794 characters, so that
@@ -66,14 +37,6 @@ Result: 75 chunks (one per reply) instead of 23 (one per thread), averaging
 
 ## Sample Chunks
 
-<!-- Five chunks, pasted as text. Label each one and name the file it came from
-     AND the function that produced it — the grader checks your code against
-     what you claim here.
-
-     `python app.py chunks -n 5` prints all three for you. Copy them straight
-     across.
-
-     Milestone 3. -->
 
 **Chunk 1** — source: `thread_bike_commute.txt#0` — produced by: `chunker.py::split_documents`
 
@@ -158,15 +121,6 @@ judgment and the embedding's judgment agreeing independently.
 
 **My relevance cutoff:**
 
-<!-- The number you set in config.py, and how you got there.
-
-     You ran five questions your corpus covers and the five in OUT_OF_SCOPE
-     that it clearly doesn't, and wrote down the best distance for each. What
-     did those two groups look like? Where was the gap? Put the actual numbers
-     here — the table below wants all ten rows.
-
-     Milestone 4. -->
-
 | Question | In corpus? | Best distance |
 |---|---|---|
 | Anything specific for first-generation students? | Yes | 0.3365 |
@@ -183,15 +137,6 @@ judgment and the embedding's judgment agreeing independently.
 In-corpus questions top out at 0.3365; out-of-scope questions bottom out at 0.8189 but in the question "What do you wish you'd known in first year?" there are three more answers are out of bound, which is 0.65. However, the answer itself is considered relevant even though the word itself might not. So, instead of in `config.py` currently sets `THRESHOLD = 0.7`, I would set it to `THRESHOLD = 0.55`, which sits comfortably inside that gap.
 
 ## How I Used AI
-
-<!-- Two specific moments. For each: what you asked for, what came back, and
-     what you changed about it.
-
-     "I asked Claude to write the chunking function from my notes. It ignored
-     the overlap, so I added that myself" is the level of detail we're after.
-     "I used AI to help me code" is not.
-
-     Milestone 5. -->
 
 **1.** I asked Claude to check the size of each corpus so I could pick a chunk size and overlap that actually fit my documents. It came back with per-document stats showing every `advice_threads` document was 318–794 characters — under my `CHUNK_SIZE` of 800 — which meant `fallback_split` was never actually splitting anything; each whole thread was already one chunk. It first suggested splitting each reply out into its own chunk, but I pointed out that a bare reply on its own doesn't tell the agent what question it's answering, so we need the topic attached, not just the reply text on its own. It revised the design to prefix every reply chunk with the thread's title line before I had it write `split_thread`/`split_documents` in `chunker.py`. I also pushed back when it framed the fix as "tune chunk size" — I asked directly whether Milestone 3 was actually about changing the two config numbers rather than the function, and it pointed me to the docstring in `chunker.py` itself, which says to replace the function body, not the numbers.
 
