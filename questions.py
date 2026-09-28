@@ -28,6 +28,16 @@ QUESTIONS = [
     {"question": "When should I start looking for a summer internship?", "expects": "Earlier than feels reasonable. Large employers close applications in October and November for the following summer."},
     {"question": "What do you wish you'd known in first year?", "expects": "Honestly: that nobody is watching as closely as you think. I spent a year worried about looking like I knew what I was doing."},
     {"question": "The best study spots that aren't the library?", "expects": "Ridgeway Café before 10am. Empty, quiet, good coffee, and they don't push you out."},
+    {"question": "When is laundry actually free in the dorms?", "expects": "Tuesday and Wednesday mornings, every building. Sunday evening is the worst and it isn't close."},
+    {"question": "Is it weird to go to office hours with no specific question?", "expects": "No, and this is the single most common thing first years get wrong. 'I'm following the lectures but I don't feel like I understand the shape of it' is a completely normal thing to say."},
+    {"question": "What actually happens if you hand something in late?", "expects": "The universal rule: ask before the deadline, not after. Almost everyone will give you two days if you ask on Wednesday for a Friday deadline. Almost nobody will on the following Monday."},
+    {"question": "Is the printing quota enough?", "expects": "For most people yes. $30 is about 600 pages black and white. It's the colour printing that eats it — eight times the cost per page."},
+    {"question": "Do professors actually answer email?", "expects": "Varies enormously. General rule I've found: if the syllabus states a response window, it's honoured. If it doesn't, assume 48 hours and don't panic before then."},
+    {"question": "Worth getting a parking permit?", "expects": "Street parking on Verrill is legal and free and unmarked, which is why half the upper years do it."},
+    {"question": "First winter here — what do I need?", "expects": "Boots with actual tread. The path past the pond ices over and people go down on it every year."},
+    {"question": "Do transfer credits actually count toward the major?", "expects": "Toward general requirements almost always. Toward the major it's case-by-case and the department decides, not the registrar."},
+    {"question": "Does the edition of the textbook matter?", "expects": "Ask the instructor directly. Most will tell you the previous edition is fine, and they can't put that in the syllabus for procurement reasons."},
+    {"question": "How do you handle a group project where someone disappears?", "expects": "Document early. Not to be difficult — because if you go to the instructor in week 10 with nothing written down, there's nothing they can do."},
 ]
 
 # Questions from a different world entirely. Your gate should refuse all five.

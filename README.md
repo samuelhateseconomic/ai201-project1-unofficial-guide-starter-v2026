@@ -151,21 +151,7 @@ In-corpus questions top out at 0.3365; out-of-scope questions bottom out at 0.81
 
 # Unit 2
 
-<!-- These sections get ADDED to what's already above. Don't delete or rewrite
-     unit 1 — the point is that someone can see what you said before you knew
-     how it went. -->
-
 ## Run Log — Before
-
-<!-- Your five criteria, three runs each. `python run_eval.py --label before`
-     runs the questions, puts the OUT_OF_SCOPE ones through the gate, and
-     writes it all into results/ for you. Targets come from criteria.md; the
-     verdict column is your call.
-
-     Criterion 3 is measured in one deterministic pass rather than three, so
-     the same number goes in all three run columns. That's correct, not lazy.
-
-     Milestone 1. -->
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
@@ -175,12 +161,7 @@ In-corpus questions top out at 0.3365; out-of-scope questions bottom out at 0.81
 | 4. Every document gets chunked, none dropped | 75 chunks, 0 dropped | 75, 0 dropped | 75, 0 dropped | 75, 0 dropped | MET |
 | 5. Threshold (0.55) holds for in-corpus questions | 5 of 5 pass the gate | 5/5 | 5/5 | 5/5 | MET |
 
-<!-- Underneath, paste the REAL output for each criterion from one of your
-     runs — the actual text your system produced, not a description of it.
-     Name the file and function that produced it. -->
-
-Source data: `results/run_2026-09-26_2118.md`, produced by
-`run_eval.py::main` (top-k 5, cutoff 0.55, 3 runs, caching off).
+Source data: `results/run_2026-09-26_2118.md`, produced by `run_eval.py::main` (top-k 5, cutoff 0.55, 3 runs, caching off).
 
 ### Criterion 1 — retrieved chunk contains the answer
 
@@ -293,6 +274,43 @@ retrieval is deterministic):
      low, and which one you'd tighten and to what.
 
      Milestone 3. -->
+
+**Missed nothing.** All five criteria cleared in every one of the three
+runs (5/5, 5/5, 5/5 on the four count-based ones; 75 chunks / 0 dropped,
+checked once, on the fifth). No stage — loading, chunking, embedding,
+retrieval, generation — produced a failure to trace.
+
+That's a sign at least two of my targets were set safe rather than hard,
+not that the pipeline is bulletproof:
+
+- **Criterion 3 (gate stops out-of-corpus questions)** is the loosest one.
+  My `OUT_OF_SCOPE` list (capital of Mongolia, oil changes, the 1994 World
+  Cup, ibuprofen dosage, a Rust for-loop) is five completely different
+  worlds from `advice_threads`, so the embedding gap is huge — the closest
+  any of them got was 0.819, versus my worst in-corpus question at 0.3365
+  and a cutoff at 0.55. A margin of 0.27 either side of the cutoff means
+  I've never actually tested the gate near its boundary. **I'd tighten
+  this to 5 of 5** and swap in adversarial questions that are topically
+  *adjacent* to the corpus instead — e.g. "What's the best dining hall on
+  campus?" (plausible student question, no thread answers it) or "Is it
+  worth living off-campus?" (same shape as my real questions, not in the
+  corpus) — so the gate is judged on questions that could plausibly embed
+  close to a real thread, not on trivia from an unrelated domain.
+
+- **Criterion 1 (retrieved chunks contain the answer)** looks strong at
+  5/5, but the mechanism that makes it easy is the corpus size, not
+  precision: each thread only has 3–5 replies, `top_k` is 5, and most of
+  my five questions retrieve chunks almost entirely from a single thread
+  (`thread_first_year_regret.txt` contributes all 5 of its replies to one
+  question's top-5). With a thread that short, "the answer is somewhere
+  in the top 5" is close to guaranteed by the corpus shape, not something
+  retrieval had to work for. **I'd tighten this to "in the top 3"** —
+  closer to the actual precision the retrieval step is providing — before
+  trusting 5/5 as evidence the embedding step is doing real work.
+
+Criteria 2, 4, and 5 don't have the same slack: criterion 2 has no room to
+loosen further (every answer either names a source or it doesn't), and
+criterion 4's target is an exact count with zero tolerance already.
 
 ## The Improvement
 
