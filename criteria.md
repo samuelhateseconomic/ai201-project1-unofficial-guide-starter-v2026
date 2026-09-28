@@ -32,6 +32,16 @@ question (ibuprofen dosage, 0.8189) — a gap of over 0.48. There's no borderlin
 question in my set sitting close to that boundary, so I don't have a reason to
 expect any single one of the five to be fragile.
 
+> **Revised in unit 2:** For all 15 of my 15 test questions, at least one of
+> the top 5 chunks `store.search` retrieves contains the `expects` phrase (or
+> the substance of it) for that question.
+>
+> **Why revised:** I added 10 more test questions (one per previously-untested
+> thread) to stop relying on just 5 data points for a corpus of 23 documents.
+> Each new `expects` string is a verbatim substring of the specific reply it
+> targets, checked directly against `corpora/advice_threads/documents/`, the
+> same standard the original 5 were held to — this widens the evidence, it
+> doesn't loosen the bar. All 15 held in every one of 3 runs.
 
 ---
 
@@ -59,6 +69,23 @@ in at least 4 of 5 tries.
 <!-- What did your distances look like when you set the cutoff in Milestone 4?
      Was there a clean gap, or did the two groups overlap? -->
 The distance should be lower than 0.55 in other to determine it is the answer for the question. Otherwise, it should be honest about the limitation of the documents itself rather than being hallucinated and generate fake answers. 
+
+> **Revised in unit 2:** Same target — the gate refuses at least 4 of 5
+> out-of-corpus questions — but the five questions are now topically
+> *adjacent* to the corpus (best dining hall, living off-campus, gym
+> membership tier, bike repair, downtown shuttle cost) instead of trivia from
+> an unrelated domain.
+>
+> **Why revised:** The original five measured the wrong thing. They landed at
+> distance 0.82–0.91, while my cutoff is 0.55 and my worst real question is
+> 0.35 — so the gate was being tested 0.27 away from its own boundary and
+> could not fail. The criterion said "questions my documents clearly don't
+> cover," and a plausible student question no thread answers is a much more
+> honest instance of that than "What is the capital of Mongolia?". The five
+> replacements land at 0.51–0.54, right where the cutoff actually has to make
+> a decision. The number (4 of 5) is unchanged; only what it is 4 of 5 *of*
+> got harder.
+
 ---
 
 ## 4. Every document gets chunked, none silently dropped
@@ -70,7 +97,7 @@ once — zero documents producing zero chunks.
 **Why this target:**
 `split_documents` has two paths: split on the `--- reply N (votes) ---`
 marker, or fall back to the fixed 800-character splitter for any document
-that doesn't contain that marker. A document that hits neither path — say,
+that doesn't contain that marker. A document that hits neither path, say,
 one with an unexpected format — wouldn't error, it would just silently
 contribute zero chunks, and every reply in it would become permanently
 unretrievable without the run ever showing a failure. Checking the total
@@ -87,39 +114,3 @@ What if even the question has in the corpus but the answers are constructed in a
 
 
 ---
-
-<!-- ─────────────────────────────────────────────────────────────────────────
-     UNIT 2 — read this before you change anything above.
-
-     If a criterion turns out to be BROKEN rather than merely unmet, you can
-     revise it, and that earns credit. But never delete or edit the original
-     line. Add the revision underneath it, like this:
-
-         ## 1. Retrieved chunks contain the answer
-
-         For at least 4 of my 5 test questions, the retrieved chunks include
-         one that contains the answer.
-
-         **Why this target:** ...
-
-         > **Revised in unit 2:** For at least 4 of 5 questions, the top three
-         > results contain the answer.
-         >
-         > **Why revised:** I couldn't judge "the chunks include one that
-         > contains the answer" the same way twice — I scored two questions
-         > differently on Monday than on Wednesday. The new version is
-         > something I can actually check.
-
-     That's a revision because the criterion couldn't be MEASURED.
-
-     Lowering a target because you missed it is not a revision, and it costs
-     you the point:
-
-         ✗ "I said 4 of 5 but got 2 of 5, so 2 of 5 is more realistic."
-
-     A number you missed stays where it is, gets diagnosed, and gets a fix
-     attempted. That's where the points are.
-
-     The whole reason the originals stay visible is so someone can see what you
-     said before you knew the answer.
-     ───────────────────────────────────────────────────────────────────────── -->

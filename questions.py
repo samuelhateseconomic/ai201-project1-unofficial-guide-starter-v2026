@@ -47,7 +47,23 @@ QUESTIONS = [
 # `run_eval.py` runs these through retrieval and the gate on every eval and
 # records what happened, so criterion 3 has evidence in the run log alongside
 # the others. They cost no model calls: a refusal never reaches the model.
+#
+# Unit 2: swapped for questions that are topically ADJACENT to the corpus —
+# plausible student questions no thread actually answers — instead of trivia
+# from an unrelated domain. The original five (capital of Mongolia, diesel oil
+# change, 1994 World Cup, ibuprofen dosage, Rust for-loop) all landed at
+# distance 0.82–0.91, so they never tested the gate near its cutoff. These
+# five land at 0.51–0.54 against the per-reply index.
 OUT_OF_SCOPE = [
+    "What's the best dining hall on campus?",
+    "Is it worth living off-campus in second year?",
+    "Which gym membership tier should I get?",
+    "Where can I get my bike repaired near campus?",
+    "How much does the shuttle to downtown cost?",
+]
+
+# Kept for reference — the unit 1 set. Not run by run_eval.py.
+OUT_OF_SCOPE_UNIT1 = [
     "What is the capital of Mongolia?",
     "How do I change the oil in a diesel engine?",
     "Who won the 1994 World Cup?",
