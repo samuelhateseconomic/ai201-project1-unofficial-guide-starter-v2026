@@ -61,15 +61,43 @@ THRESHOLD = 0.45  # unit 2: was 0.55. Adjacent out-of-corpus questions land at
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 MODEL = os.getenv("AI201_MODEL", "gemini-3.5-flash-lite")
 
+# Unit 2 stretch: rotate across several models so one free-tier per-minute
+# quota isn't the ceiling. Each entry is "model-id:calls-per-minute". Order is
+# priority — generate.py uses the first model with a free slot this minute and
+# only moves down the list when the ones above are used up or cooling down
+# after a 429. Set AI201_MODEL_POOL to a single "id:n" to pin one model (e.g.
+# for an eval where every answer should come from the same model).
+#
+# Free-tier quotas as of Sep 2026, per the 429 messages and the model list:
+#   gemini-3.5-flash-lite 15 · gemini-3.1-flash-lite 15 ·
+#   gemini-3.5-flash 5 · gemini-3-flash-preview 5     → 40 calls/minute total
+_POOL_DEFAULT = (
+    f"{MODEL}:15,gemini-3.1-flash-lite:15,gemini-3.5-flash:5,gemini-3-flash-preview:5"
+)
+
+
+def _parse_pool(spec: str) -> list[tuple[str, int]]:
+    pool = []
+    for item in spec.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        name, _, quota = item.partition(":")
+        pool.append((name.strip(), int(quota) if quota.strip() else REQUESTS_PER_MINUTE))
+    return pool
+
 
 # ─── Rate limiting and quota guards ──────────────────────────────────────────
 # You should not need to touch these. They exist so that a runaway loop costs
 # you a warning instead of your whole day's allowance.
 
-REQUESTS_PER_MINUTE = 12       # outgoing calls the limiter will allow per minute
-                                # (Gemini free tier caps gemini-3.5-flash-lite at
-                                # 15/min; 30 here was letting the limiter think it
-                                # had headroom it didn't, causing 429s mid-run)
+REQUESTS_PER_MINUTE = 12       # per-minute quota assumed for any MODEL_POOL entry
+                                # written without one. (Was 30; the free tier caps
+                                # gemini-3.5-flash-lite at 15/min, and 30 let the
+                                # limiter think it had headroom it didn't.)
+
+# The rotation pool generate.py actually paces against — see the note by MODEL.
+MODEL_POOL = _parse_pool(os.getenv("AI201_MODEL_POOL", _POOL_DEFAULT))
 SESSION_REQUEST_BUDGET = 300   # stop and warn rather than draining the daily quota
 MAX_RETRIES = 4                # on 429 / resource-exhausted, with backoff
 

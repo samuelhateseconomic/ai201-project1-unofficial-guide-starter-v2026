@@ -1,153 +1,47 @@
 # The Unofficial Guide
 Samuel Do - advice_threads
 ---
-
-# Unit 1
-
-## What This Does
-I run the corpus advice_threads and ask "What do you wish you'd know in first year?" - Then, the answer will look like "That nobody is watching you as closely as you think, and you don't need to worry so much about looking like you know what you're doing....". At the same time, it will contain the resources that the answer came from which one of them should be `thread_first_year_regret.txt`.
-
-## Chunking Strategy
-
-**Chunk size:** one reply per chunk (not a character count).
-**Overlap:** none — replies don't share text with each other.
-
-I started with the default `fallback_split` (fixed 800 characters, 120
-overlap). Every document in `advice_threads` is 318–794 characters, so that
-setting never actually split anything — each whole thread became one chunk.
-That's the bug behind the retrieval miss I noted above: a thread is not one
-thought, it's 3–5 people giving different (sometimes contradictory) answers
-to the question in the title. Embedding the whole thread as one chunk averages
-those answers together, so a question that matches one specific reply well
-gets diluted by the unrelated replies sitting in the same vector.
-
-So I rewrote `split_documents` to split on the `--- reply N (votes) ---`
-marker instead of a character count: one reply = one chunk. Each chunk is
-prefixed with the thread's title line, because a reply on its own ("Talk to
-the department adviser...") doesn't say what question it's answering — the
-title is what makes the chunk self-contained. Vote counts are dropped from
-the chunk text; they're a ranking signal for the humans in the thread, not
-content I want the model treating as fact. Any document that doesn't contain
-a reply marker falls back to the original fixed-size splitter, so the
-function doesn't silently mishandle a document shaped differently than I
-expect.
-
-Result: 75 chunks (one per reply) instead of 23 (one per thread), averaging
-175 characters, produced by `chunker.py::split_documents`.
-
-## Sample Chunks
-
-
-**Chunk 1** — source: `thread_bike_commute.txt#0` — produced by: `chunker.py::split_documents`
-
-```
-THREAD: Is a bike worth it for a 20 minute walk commute?
-
-Yeah. Cuts an 18 minute walk to about 6. The thing nobody mentions is storage — covered bike parking exists at three buildings and is full by 9am at all three.
-```
-
-**Chunk 2** — source: `thread_first_gen.txt#1` — produced by: `chunker.py::split_documents`
-
-```
-THREAD: Anything specific for first-generation students?
-
-The thing I'd say: the unwritten rules are the hard part, not the coursework. Ask about the unwritten rules explicitly. People are happy to explain them and nobody volunteers them.
-```
-
-**Chunk 3** — source: `thread_laptop_specs.txt#2` — produced by: `chunker.py::split_documents`
-
-```
-THREAD: How much laptop do I actually need for CS courses?
-
-I did two years on an 8GB machine and it was fine until the last project, at which point it very much wasn't. 16 is the answer.
-```
-
-**Chunk 4** — source: `thread_parking.txt#1` — produced by: `chunker.py::split_documents`
-
-```
-THREAD: Worth getting a parking permit?
-
-Street parking on Verrill is legal and free and unmarked, which is why half the upper years do it.
-```
-
-**Chunk 5** — source: `thread_sleep_schedule.txt#1` — produced by: `chunker.py::split_documents`
-
-```
-THREAD: Everyone says fix your sleep. Does it actually matter?
-
-The library being open until 2am is a trap. It's a resource, not a schedule.
-```
-
-## Sample Answer
-
-<!-- One complete question and answer, pasted as text, with the source line
-     visible. Milestone 4. -->
-
-**Question:** What do you wish you'd known in first year?
-
-**Answer:**
-
-```
-Based on the provided documents, people wish they had known:
-* That nobody is watching you as closely as you think, and you don't need to worry so much about looking like you know whatyou're doing.
-* That you can declare a course pass/fail late, up to week eight.
-* That your adviser's job is partly to know exceptions to rules, so you should ask before assuming a deadline is fixed.
-* That the add/drop deadline and the withdrawal deadline are different dates, and only one is on the common calendar.
-* That the writing centre will read drafts for any course for free, and these appointments often go unbooked.
-```
-
-**A note on the retrieval behind this answer:** the five chunks retrieved for
-this question all come from the same thread (`thread_first_year_regret.txt`),
-but the distances spread from 0.2895 (closest) to 0.6364 (farthest):
-
-```
-0.2895  #3  "Honestly: that nobody is watching as closely as you think..."  (52 votes)
-0.4442  #1  "That you can take a course pass/fail and declare it late..."
-0.5372  #4  "That your adviser's job is partly to know the exceptions..."
-0.5993  #0  "That the add/drop deadline and the withdrawal deadline are different..."
-0.6364  #2  "That the writing centre will read a draft for any course..."
-```
-
-The closest match is also the most-upvoted reply, even though it shares
-almost no vocabulary with the question ("Honestly: that nobody is watching..."
-has no "wish," "known," or "first year" in it). It's phrased as the same kind
-of reflective, in-hindsight confession the question is asking for, so the
-embedding model matches on meaning rather than shared words — the other
-replies are on-topic but phrased as flat factual tips, a different sentence
-shape, so they land farther away despite being valid answers too. Vote counts
-have no way to influence this, since I strip them out of the chunk text
-before embedding — so the top-voted reply landing closest is the community's
-judgment and the embedding's judgment agreeing independently.
-
-**My relevance cutoff:**
-
-| Question | In corpus? | Best distance |
-|---|---|---|
-| Anything specific for first-generation students? | Yes | 0.3365 |
-| When should you actually use the pass/fail option? | Yes | 0.1859 |
-| When should I start looking for a summer internship? | Yes | 0.1309 |
-| What do you wish you'd known in first year? | Yes | 0.2895 |
-| The best study spots that aren't the library? | Yes | 0.1890 |
-| What is the capital of Mongolia? | No | 0.8990 |
-| How do I change the oil in a diesel engine? | No | 0.9047 |
-| Who won the 1994 World Cup? | No | 0.8982 |
-| What is the recommended dosage of ibuprofen for a headache? | No | 0.8189 |
-| How do I write a for loop in Rust? | No | 0.8606 |
-
-In-corpus questions top out at 0.3365; out-of-scope questions bottom out at 0.8189 but in the question "What do you wish you'd known in first year?" there are three more answers are out of bound, which is 0.65. However, the answer itself is considered relevant even though the word itself might not. So, instead of in `config.py` currently sets `THRESHOLD = 0.7`, I would set it to `THRESHOLD = 0.55`, which sits comfortably inside that gap.
-
-## How I Used AI
-
-**1.** I asked Claude to check the size of each corpus so I could pick a chunk size and overlap that actually fit my documents. It came back with per-document stats showing every `advice_threads` document was 318–794 characters — under my `CHUNK_SIZE` of 800 — which meant `fallback_split` was never actually splitting anything; each whole thread was already one chunk. It first suggested splitting each reply out into its own chunk, but I pointed out that a bare reply on its own doesn't tell the agent what question it's answering, so we need the topic attached, not just the reply text on its own. It revised the design to prefix every reply chunk with the thread's title line before I had it write `split_thread`/`split_documents` in `chunker.py`. I also pushed back when it framed the fix as "tune chunk size" — I asked directly whether Milestone 3 was actually about changing the two config numbers rather than the function, and it pointed me to the docstring in `chunker.py` itself, which says to replace the function body, not the numbers.
-
-**2.** For Milestone 4, I asked Claude to run my five `QUESTIONS` and five `OUT_OF_SCOPE` questions through retrieval and report the best distance for each, then asked where it would put the relevance cutoff and what I'd get wrong at that number. It came back with in-corpus distances topping out at 0.3365 and out-of-scope distances bottoming out at 0.8189, and recommended a cutoff near the middle of that gap (~0.55–0.6) rather than the starter's 0.7 default — explaining that 0.7 sits closer to the out-of-scope side and would be more likely to let a superficially similar out-of-scope question slip through, while a cutoff too low risks refusing a real question phrased awkwardly. I used that reasoning to set `THRESHOLD = 0.55` in `config.py` myself, rather than just accepting whatever number it suggested first.
-
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Add more tests.
      Add extra layers that can replace the gemini model if it runs over usage. 
      ───────────────────────────────────────────────────────────────────────── -->
 
 ---
+
+## Stretch feature: model rotation
+
+**What:** `generate.py` rotates across several Gemini models instead of
+calling one. Each model in `config.MODEL_POOL` gets its own per-minute
+window; a call goes to the highest-priority model with a free slot, and a
+model that answers 429 or 503 is cooled down while the call moves to the
+next one. The default pool is `gemini-3.5-flash-lite:15`,
+`gemini-3.1-flash-lite:15`, `gemini-3.5-flash:5`, `gemini-3-flash-preview:5`
+— 40 calls/minute against the free tier's 15 for any single model.
+`AI201_MODEL_POOL=gemini-3.5-flash-lite:15` pins one model back, which is
+what an eval should use so every answer comes from the same model.
+
+**Why:** the 15-question eval is 45 model calls per run. At one model's
+quota that's a 4-minute run that crashed with a 429 the first time; with
+the pool it fits in two minutes. It's also why the unit-2 test set could
+grow from 5 to 15 questions.
+
+**Evidence** — every quota pinned to 1 so five questions are forced to
+rotate, `generate.usage()` at the end:
+
+```
+  [model pool] gemini-3-flash-preview is overloaded (503); cooling it down for 30s and moving to the next model (attempt 1 of 4).
+  [rate limit] all 4 models used up this minute. Waiting 30s. This is normal.
+[gemini-3.5-flash-lite] How many clubs is too many?
+[gemini-3.1-flash-lite] Is a bike worth it for a 20 minute walk commute?
+[gemini-3.5-flash] How hard is it to change major in second year?
+[gemini-3.5-flash-lite] Roommate situation isn't working. What now?
+[gemini-3.1-flash-lite] Everyone says fix your sleep. Does it actually matter?
+6 model calls this session [gemini-3.5-flash-lite 2, gemini-3.1-flash-lite 2, gemini-3.5-flash 1, gemini-3-flash-preview 1], 2386 tokens (1964 in, 422 out)
+```
+
+Known limit: `gemini-3-flash-preview` returned 503 both times it was
+reached, so in practice the pool is 35/minute with a 30-second dead spot
+when the other three are exhausted.
 
 # Unit 2
 
@@ -381,7 +275,7 @@ index, same top-k, same prompt.
 **Why I picked it:** My criterion 3 diagnosis found that 0.55 was set by
 splitting an empty gap — between my worst real question (0.348) and trivia
 that sat at 0.82+ — and that plausible campus questions no thread answers
-land at 0.51–0.54, *inside* that gap, so the gate waves them through to
+land at 0.51–0.54, inside that gap, so the gate waves them through to
 generation. 0.45 sits in the gap that actually exists: 0.10 above the worst
 real question, 0.06 below the closest adjacent non-question.
 
@@ -448,13 +342,6 @@ I don't have enough information about that.
 
 **Did it help?**
 
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
-
-     Milestone 4. -->
-
 Yes. Criterion 3 went from 0 of 5 to 5 of 5 on the same five questions, and
 nothing else moved: criteria 1, 2 and 5 are 15/15 in every run after exactly
 as before, and criterion 4 was never in play. I know because the two runs
@@ -489,17 +376,34 @@ Two honest qualifications:
 
 ## What's Still Broken
 
-<!-- For each criterion still missed after your fix: what you'd do about it,
-     and why you stopped where you did.
+No criterion is still MISSED after the fix. That is not the same as nothing
+being left. no 
 
-     "I ran out of time" is fine if it's true. Pretending nothing is left is
-     not.
-
-     Milestone 5. -->
 
 ## What I'd Do Differently
 
-<!-- Knowing what you know now — which of your five criteria would you write
-     differently, and why?
+Actually, criterion 1 can be "top 3" instead of "top 5" and define the check mechanically. Because top 5 is a whole thread and change it would made `run_eval.py`'s column mean something instead of failing 45/45 against pararphrased answers.
 
-     Milestone 5. -->
+## How I Used AI
+
+**Unit 2.**
+I had Claude turn `run_eval.py`'s per-question table into the
+per-criterion run log. The first thing it flagged was that every cell said
+`fail` even though the answers were obviously right — `scorer.py` was
+checking my `expects` string against the paraphrased answer instead of the
+retrieved chunk — so instead of trusting the column it checked each
+`expects` string against the corpus files directly and parsed all 45
+answers for a source citation, and I used those as the verdicts.
+
+When I asked whether to add hybrid search or a second chunking strategy as
+my improvement, it measured both before answering instead of agreeing:
+dense retrieval already had every answer in the top 3, BM25 was worse, and
+whole-thread chunks pushed my worst real question to 0.704. Then it probed
+my gate with campus questions no thread answers and found 5 of 8 got
+through at 0.55. I picked the gate retune over the "impressive" options
+because it was the only one with a diagnosis behind it. The scope calls —
+expanding to 15 questions, revising criteria 1 and 3 in `criteria.md` —
+were mine after it laid out the trade-off, and I kept the fix to one number
+so the before/after would be clean.
+
+**Stretching - AI Rotation.**

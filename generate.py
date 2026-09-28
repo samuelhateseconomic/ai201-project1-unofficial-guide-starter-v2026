@@ -14,6 +14,10 @@ What this function does for you:
 
   • Paces requests so you stay under the per-minute limit, and tells you when
     it's waiting. A pause is the limiter doing its job, not a hang.
+  • (Unit 2 stretch) Rotates across the models in config.MODEL_POOL, each with
+    its own per-minute window, so the free tier's per-model cap isn't the
+    ceiling. A model that answers 429 or 503 is cooled down and the call moves
+    to the next one; `last_model` says which model produced the last answer.
   • Caches repeated prompts while you're building, so re-running the same
     question twenty times while you debug costs one call.
   • Stops with a warning if a session goes through an unreasonable number of
@@ -86,24 +90,81 @@ def clear_cache() -> int:
 # ─── Pacing and guards ───────────────────────────────────────────────────────
 
 
-def _wait_for_slot() -> None:
-    """Sleep, if we've used up this minute's allowance."""
-    now = time.monotonic()
-    _call_times[:] = [t for t in _call_times if now - t < 60.0]
+# Unit 2 stretch: model rotation.
+#
+# The free tier caps each model separately, per minute. One model gives you 15
+# calls; four models give you 40. So instead of one sliding window, there is
+# one per model in config.MODEL_POOL, and each call goes to the first model in
+# priority order that still has a free slot this minute. A model that answers
+# 429 anyway is put on cooldown for however long the service asked, and the
+# call moves down the list instead of sleeping. Only when every model is used
+# up or cooling down do we actually wait — and then only until the earliest
+# slot frees, on whichever model that is.
 
-    if len(_call_times) < config.REQUESTS_PER_MINUTE:
-        return
+_calls_by_model: dict[str, list[float]] = {}
+_calls_total_by_model: dict[str, int] = {}
+_cooldown_until: dict[str, float] = {}
+_disabled: set[str] = set()      # model ids the service says don't exist
+last_model: str | None = None    # which model produced the most recent answer
 
-    sleep_for = 60.0 - (now - _call_times[0]) + 0.1
-    if sleep_for > 0:
+
+def _pool() -> list[tuple[str, int]]:
+    return [(m, q) for m, q in config.MODEL_POOL if m not in _disabled] or []
+
+
+def _window(model: str, now: float) -> list[float]:
+    times = _calls_by_model.setdefault(model, [])
+    times[:] = [t for t in times if now - t < 60.0]
+    return times
+
+
+def _pick_model() -> str:
+    """
+    Return the highest-priority model with a free slot this minute, sleeping
+    first if there isn't one anywhere.
+    """
+    while True:
+        now = time.monotonic()
+        pool = _pool()
+        if not pool:
+            raise RuntimeError(
+                "Every model in config.MODEL_POOL has been disabled this session "
+                "(the service said it doesn't exist). Check the ids."
+            )
+
+        soonest = None
+        for model, quota in pool:
+            if _cooldown_until.get(model, 0.0) > now:
+                soonest = min(soonest or 1e9, _cooldown_until[model])
+                continue
+            window = _window(model, now)
+            if len(window) < quota:
+                return model
+            soonest = min(soonest or 1e9, window[0] + 60.0)
+
+        sleep_for = max(0.0, soonest - now) + 0.1
         print(
-            f"  [rate limit] {config.REQUESTS_PER_MINUTE} requests used this "
-            f"minute. Waiting {sleep_for:.0f}s. This is normal.",
+            f"  [rate limit] all {len(pool)} models used up this minute. "
+            f"Waiting {sleep_for:.0f}s. This is normal.",
             file=sys.stderr,
             flush=True,
         )
         time.sleep(sleep_for)
-        _call_times[:] = [t for t in _call_times if time.monotonic() - t < 60.0]
+
+
+def _retry_after_seconds(message: str) -> float:
+    """How long the service asked us to wait, if it said. Default a minute."""
+    import re
+
+    m = re.search(r"retry in ([\d.]+)\s*s", message) or re.search(
+        r"retryDelay['\"]?:\s*['\"]?([\d.]+)s", message
+    )
+    return float(m.group(1)) if m else 60.0
+
+
+def _wait_for_slot() -> None:
+    """Kept for compatibility; the per-model pacing now lives in _pick_model."""
+    return
 
 
 def _check_budget() -> None:
@@ -155,8 +216,15 @@ def usage() -> str:
             f", {total} tokens "
             f"({_session_prompt_tokens} in, {_session_output_tokens} out)"
         )
+    by_model = ""
+    if len(_calls_total_by_model) > 1 or (
+        _calls_total_by_model and next(iter(_calls_total_by_model)) != config.MODEL
+    ):
+        parts = ", ".join(f"{m} {n}" for m, n in _calls_total_by_model.items())
+        by_model = f" [{parts}]"
     return (
         f"{_session_calls} model calls this session"
+        f"{by_model}"
         f"{tokens}"
         f"{f', {_cache_hits} served from cache' if _cache_hits else ''}"
     )
@@ -226,21 +294,30 @@ def generate(prompt: str, system: str | None = None, cache: bool = True) -> str:
 
     _check_budget()
 
+    global last_model
+
     last_error: Exception | None = None
-    for attempt in range(config.MAX_RETRIES):
-        _wait_for_slot()
+    # One attempt per model in the pool, at minimum — a 429 on one model is a
+    # reason to try the next one, not a reason to give up.
+    attempts = max(config.MAX_RETRIES, len(config.MODEL_POOL))
+    for attempt in range(attempts):
+        model = _pick_model()
         try:
             client = _get_client()
-            _call_times.append(time.monotonic())
+            now = time.monotonic()
+            _call_times.append(now)
+            _window(model, now).append(now)
             _session_calls += 1
+            _calls_total_by_model[model] = _calls_total_by_model.get(model, 0) + 1
 
-            kwargs = {"model": config.MODEL, "contents": prompt}
+            kwargs = {"model": model, "contents": prompt}
             if system:
                 kwargs["config"] = {"system_instruction": system}
 
             response = client.models.generate_content(**kwargs)
             _record_tokens(response)
             text = (response.text or "").strip()
+            last_model = model
 
             if use_cache:
                 _cache_write(key, text)
@@ -254,20 +331,44 @@ def generate(prompt: str, system: str | None = None, cache: bool = True) -> str:
                 or "resource" in message and "exhaust" in message
                 or "rate" in message and "limit" in message
             )
-            if not rate_limited:
+            missing = "404" in message or "not found" in message
+            if missing:
+                # A typo in MODEL_POOL shouldn't end the run — drop that model
+                # for the session and carry on with the others.
+                _disabled.add(model)
+                print(
+                    f"  [model pool] {model!r} isn't available to this key — "
+                    f"dropping it for this session.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                continue
+            # 503 / "high demand" / "overloaded" is the service, not us — but
+            # for a pool it means the same thing as a 429: this model is not
+            # usable right now, and another one probably is.
+            overloaded = (
+                "503" in message
+                or "unavailable" in message
+                or "overloaded" in message
+                or "high demand" in message
+            )
+            if not rate_limited and not overloaded:
                 raise
-            backoff = 2 ** attempt
+            wait = _retry_after_seconds(message) if rate_limited else 30.0
+            _cooldown_until[model] = time.monotonic() + wait
+            why = "pushed back (rate limit)" if rate_limited else "is overloaded (503)"
             print(
-                f"  [rate limit] service pushed back. Retrying in {backoff}s "
-                f"(attempt {attempt + 1} of {config.MAX_RETRIES}).",
+                f"  [model pool] {model} {why}; cooling it down for "
+                f"{wait:.0f}s and moving to the next model "
+                f"(attempt {attempt + 1} of {attempts}).",
                 file=sys.stderr,
                 flush=True,
             )
-            time.sleep(backoff)
 
     raise RuntimeError(
-        f"Still rate limited after {config.MAX_RETRIES} attempts. Wait a "
-        f"minute and try again — your key is fine.\nLast error: {last_error}"
+        f"Still rate limited after {attempts} attempts across "
+        f"{len(config.MODEL_POOL)} model(s). Wait a minute and try again — "
+        f"your key is fine.\nLast error: {last_error}"
     )
 
 
